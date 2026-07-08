@@ -12,6 +12,7 @@ import (
 
 type Querier interface {
 	AttachTagToPerson(ctx context.Context, arg AttachTagToPersonParams) error
+	CountPeopleByOwner(ctx context.Context, ownerUserID pgtype.UUID) (int64, error)
 	// attachments.sql
 	// File attachments tied to people, scoped by owner_user_id.
 	CreateAttachment(ctx context.Context, arg CreateAttachmentParams) (Attachment, error)

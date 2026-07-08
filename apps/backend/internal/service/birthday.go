@@ -45,10 +45,11 @@ func ComputeBirthday(birthday time.Time, today time.Time) BirthdayInfo {
 	bd := birthday
 	isLeap := bd.Month() == 2 && bd.Day() == 29
 
-	// For age comparisons, a Feb 29 birthday is treated as Feb 28 in
-	// non-leap years (the observed celebration date).
+	// For age comparisons, a Feb 29 birthday is treated as Feb 28 only in
+	// non-leap years (the observed celebration date). In leap years the real
+	// Feb 29 date is used.
 	compareBD := bd
-	if isLeap {
+	if isLeap && !IsLeapYear(today.Year()) {
 		compareBD = time.Date(bd.Year(), 2, 28, 0, 0, 0, 0, bd.Location())
 	}
 
@@ -71,7 +72,7 @@ func ComputeBirthday(birthday time.Time, today time.Time) BirthdayInfo {
 		}
 	}
 
-	daysUntil := int(next.Sub(truncateToDay(today)).Hours() / 24)
+	daysUntil := calendarDaysBetween(today, next)
 	upcomingAge := year - bd.Year()
 
 	return BirthdayInfo{
@@ -107,4 +108,13 @@ func sameDay(a, b time.Time) bool {
 
 func truncateToDay(t time.Time) time.Time {
 	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
+}
+
+// calendarDaysBetween returns the number of whole calendar days between from
+// and to (to - from), computed at day granularity in UTC to avoid DST shifts
+// when subtracting wall-clock hours.
+func calendarDaysBetween(from, to time.Time) int {
+	fromD := time.Date(from.Year(), from.Month(), from.Day(), 0, 0, 0, 0, time.UTC)
+	toD := time.Date(to.Year(), to.Month(), to.Day(), 0, 0, 0, 0, time.UTC)
+	return int(toD.Sub(fromD).Hours() / 24)
 }

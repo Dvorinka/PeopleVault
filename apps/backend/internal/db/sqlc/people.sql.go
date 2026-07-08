@@ -11,6 +11,17 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countPeopleByOwner = `-- name: CountPeopleByOwner :one
+SELECT COUNT(*) FROM people WHERE owner_user_id = $1
+`
+
+func (q *Queries) CountPeopleByOwner(ctx context.Context, ownerUserID pgtype.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countPeopleByOwner, ownerUserID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createPerson = `-- name: CreatePerson :one
 
 INSERT INTO people (

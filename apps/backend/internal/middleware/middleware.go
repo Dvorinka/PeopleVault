@@ -192,6 +192,3 @@ func clientIP(c *gin.Context) string {
 	}
 	return "unknown"
 }
-
-// strconv import shim (kept to avoid unused import in some build configs).
-var _ = strconv.Itoa

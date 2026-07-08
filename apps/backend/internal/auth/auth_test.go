@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"errors"
 	"strings"
 	"testing"
 )
@@ -43,6 +44,26 @@ func TestHashAndVerifyPassword(t *testing.T) {
 				t.Fatalf("VerifyPassword(%q) = %v, want %v", tt.verify, got, tt.wantOK)
 			}
 		})
+	}
+}
+
+func TestHashPasswordTooLong(t *testing.T) {
+	// bcrypt truncates input at 72 bytes; we reject before hashing so callers
+	// get a clear error instead of a silently-truncated hash.
+	long := strings.Repeat("a", 73)
+	_, err := HashPassword(long)
+	if !errors.Is(err, ErrPasswordTooLong) {
+		t.Fatalf("expected ErrPasswordTooLong, got %v", err)
+	}
+
+	// Exactly 72 bytes is allowed.
+	exactly72 := strings.Repeat("a", 72)
+	hash, err := HashPassword(exactly72)
+	if err != nil {
+		t.Fatalf("unexpected error for 72-byte password: %v", err)
+	}
+	if !VerifyPassword(hash, exactly72) {
+		t.Fatal("72-byte password should verify")
 	}
 }
 

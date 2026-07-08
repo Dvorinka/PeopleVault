@@ -14,6 +14,7 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
+	"golang.org/x/crypto/bcrypt"
 	"go.uber.org/zap"
 )
 
@@ -97,13 +98,15 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	}
 
 	// Default settings.
-	_, _ = h.q.UpdateUserSettings(c.Request.Context(), sqlc.UpdateUserSettingsParams{
+	if _, err := h.q.UpdateUserSettings(c.Request.Context(), sqlc.UpdateUserSettingsParams{
 		UserID:                  user.ID,
 		NamedayCountry:          "CZ",
 		Theme:                   "system",
 		DefaultReminderLeadDays: 7,
 		Onboarded:               false,
-	})
+	}); err != nil {
+		h.log.Warn("failed to create default user settings", zap.Error(err), zap.String("user_id", user.ID.String()))
+	}
 
 	h.audit(c, user.ID, "register", "user", user.ID)
 
@@ -134,7 +137,17 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	req.Email = strings.TrimSpace(strings.ToLower(req.Email))
 
 	user, err := h.q.GetUserByEmail(c.Request.Context(), req.Email)
-	if err != nil || !auth.VerifyPassword(user.PasswordHash, req.Password) {
+	if err != nil {
+		// Prevent timing-based user enumeration: run a dummy bcrypt compare
+		// so the response time is similar whether or not the email exists.
+		_ = bcrypt.CompareHashAndPassword(
+			[]byte("$2a$10$dummyhashdummyhashdummyhashdummyhashdummyhashdummy"),
+			[]byte(req.Password),
+		)
+		fail(c, http.StatusUnauthorized, "invalid credentials")
+		return
+	}
+	if !auth.VerifyPassword(user.PasswordHash, req.Password) {
 		fail(c, http.StatusUnauthorized, "invalid credentials")
 		return
 	}

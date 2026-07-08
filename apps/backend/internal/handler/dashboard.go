@@ -63,6 +63,8 @@ func (h *DashboardHandler) Get(c *gin.Context) {
 	country := "CZ"
 	if err == nil {
 		country = settings.NamedayCountry
+	} else {
+		h.log.Warn("dashboard query failed", zap.String("query", "GetUserSettings"), zap.Error(err), zap.String("owner", owner.String()))
 	}
 
 	resp := dashboardResp{
@@ -104,6 +106,8 @@ func (h *DashboardHandler) Get(c *gin.Context) {
 				IsLeap:         info.IsLeap,
 			})
 		}
+	} else {
+		h.log.Warn("dashboard query failed", zap.String("query", "ListUpcomingBirthdays"), zap.Error(err), zap.String("owner", owner.String()))
 	}
 
 	// Upcoming anniversaries: load all people with anniversaries and compute.
@@ -135,9 +139,18 @@ func (h *DashboardHandler) Get(c *gin.Context) {
 				}
 			}
 		}
-		resp.Stats.TotalPeople = len(people)
 		resp.Stats.Favorites = favorites
 		resp.Stats.UpcomingThisMonth = upcomingThisMonth
+	} else {
+		h.log.Warn("dashboard query failed", zap.String("query", "ListPeopleByOwner"), zap.Error(err), zap.String("owner", owner.String()))
+	}
+
+	// Total people count (uncapped, unlike the paginated ListPeopleByOwner).
+	totalPeople, err := h.q.CountPeopleByOwner(ctx, owner)
+	if err == nil {
+		resp.Stats.TotalPeople = int(totalPeople)
+	} else {
+		h.log.Warn("dashboard query failed", zap.String("query", "CountPeopleByOwner"), zap.Error(err), zap.String("owner", owner.String()))
 	}
 
 	// Today's namedays.
@@ -157,6 +170,8 @@ func (h *DashboardHandler) Get(c *gin.Context) {
 				resp.TodaysEvents = append(resp.TodaysEvents, toEventResp(e))
 			}
 		}
+	} else {
+		h.log.Warn("dashboard query failed", zap.String("query", "ListUpcomingEvents"), zap.Error(err), zap.String("owner", owner.String()))
 	}
 
 	// Recently added people.
@@ -167,6 +182,8 @@ func (h *DashboardHandler) Get(c *gin.Context) {
 		for _, p := range recent {
 			resp.RecentlyAdded = append(resp.RecentlyAdded, h.toPersonRespLocal(p))
 		}
+	} else {
+		h.log.Warn("dashboard query failed", zap.String("query", "ListRecentlyAddedByOwner"), zap.Error(err), zap.String("owner", owner.String()))
 	}
 
 	// Pending reminders.
@@ -175,6 +192,8 @@ func (h *DashboardHandler) Get(c *gin.Context) {
 		for _, r := range pending {
 			resp.PendingReminders = append(resp.PendingReminders, toReminderResp(r))
 		}
+	} else {
+		h.log.Warn("dashboard query failed", zap.String("query", "ListPendingReminders"), zap.Error(err), zap.String("owner", owner.String()))
 	}
 
 	c.JSON(http.StatusOK, resp)

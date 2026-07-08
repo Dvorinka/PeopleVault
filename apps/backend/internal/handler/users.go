@@ -73,7 +73,10 @@ func (h *UserHandler) Me(c *gin.Context) {
 
 // GetSettings returns the authenticated user's settings.
 func (h *UserHandler) GetSettings(c *gin.Context) {
-	uid := middleware.UserID(c)
+	uid, ok := ensureUserID(c)
+	if !ok {
+		return
+	}
 	s, err := h.q.GetUserSettings(c.Request.Context(), uid)
 	if err != nil {
 		status, msg := mapDBError(err)
@@ -85,7 +88,10 @@ func (h *UserHandler) GetSettings(c *gin.Context) {
 
 // UpdateSettings upserts the authenticated user's settings.
 func (h *UserHandler) UpdateSettings(c *gin.Context) {
-	uid := middleware.UserID(c)
+	uid, ok := ensureUserID(c)
+	if !ok {
+		return
+	}
 	var in userSettingsInput
 	if err := c.ShouldBindJSON(&in); err != nil {
 		failDetail(c, http.StatusBadRequest, "invalid request", err.Error())
