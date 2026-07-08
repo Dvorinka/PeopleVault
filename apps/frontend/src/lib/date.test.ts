@@ -4,6 +4,7 @@ import {
   ageYears,
   countdownLabel,
   daysUntilNext,
+  formatMonthDayFromParts,
   initials,
   parseDate,
   toISODate,
@@ -60,6 +61,22 @@ describe("countdownLabel", () => {
     expect(countdownLabel(3)).toBe("in 3 days");
     expect(countdownLabel(10)).toBe("in 1 week");
     expect(countdownLabel(null)).toBe("");
+  });
+});
+
+describe("formatMonthDayFromParts", () => {
+  it("formats a 1-indexed month/day pair", () => {
+    expect(formatMonthDayFromParts(3, 14)).toBe("March 14");
+    expect(formatMonthDayFromParts(12, 1)).toBe("December 1");
+  });
+  it("returns empty string for missing parts", () => {
+    expect(formatMonthDayFromParts(null, 14)).toBe("");
+    expect(formatMonthDayFromParts(3, null)).toBe("");
+    expect(formatMonthDayFromParts(undefined, undefined)).toBe("");
+  });
+  it("returns empty string for out-of-range month", () => {
+    expect(formatMonthDayFromParts(13, 1)).toBe("");
+    expect(formatMonthDayFromParts(0, 1)).toBe("");
   });
 });
 

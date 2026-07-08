@@ -46,11 +46,13 @@ import { useToast } from "@/hooks/use-toast";
 import {
   ageYears,
   countdownLabel,
+  daysUntilNext,
   daysUntilNextOccurrence,
   formatLongDate,
+  formatMonthDayFromParts,
   relativeTime,
 } from "@/lib/date";
-import { TIMELINE_TYPES } from "@/lib/constants";
+import { TIMELINE_TYPES, countryFlag, countryName } from "@/lib/constants";
 
 type Person = components["schemas"]["Person"];
 type TimelineEntry = components["schemas"]["TimelineEntry"];
@@ -157,6 +159,10 @@ export default function PersonDetail(): React.ReactElement {
 
   const age = ageYears(person.birthday);
   const birthdayDays = daysUntilNextOccurrence(person.birthday);
+  const namedayDays =
+    person.namedayMonth && person.namedayDay
+      ? daysUntilNext(person.namedayMonth, person.namedayDay)
+      : null;
 
   return (
     <div className="space-y-8">
@@ -221,6 +227,22 @@ export default function PersonDetail(): React.ReactElement {
                 {birthdayDays !== null ? (
                   <Badge variant={birthdayDays === 0 ? "default" : "secondary"}>
                     {countdownLabel(birthdayDays)}
+                  </Badge>
+                ) : null}
+                {person.namedayMonth && person.namedayDay ? (
+                  <span className="flex items-center gap-1.5">
+                    <Sparkles className="h-4 w-4" />
+                    {formatMonthDayFromParts(person.namedayMonth, person.namedayDay)}
+                    {person.namedayCountry ? (
+                      <span className="ml-0.5" aria-label={countryName(person.namedayCountry)}>
+                        <span aria-hidden="true">{countryFlag(person.namedayCountry)}</span>
+                      </span>
+                    ) : null}
+                  </span>
+                ) : null}
+                {namedayDays !== null ? (
+                  <Badge variant={namedayDays === 0 ? "default" : "warm"}>
+                    {countdownLabel(namedayDays)}
                   </Badge>
                 ) : null}
               </div>

@@ -49,6 +49,14 @@ export function formatMonthDay(iso: string | null | undefined): string {
   return `${MONTH_NAMES[d.getMonth()]} ${d.getDate()}`;
 }
 
+/** Format a month/day pair (1-indexed) as "March 14". */
+export function formatMonthDayFromParts(month: number | null | undefined, day: number | null | undefined): string {
+  if (!month || !day) return "";
+  const m = MONTH_NAMES[month - 1];
+  if (!m) return "";
+  return `${m} ${day}`;
+}
+
 /** Whole years between a past date and today. */
 export function ageYears(birthISO: string | null | undefined): number | null {
   const birth = parseDate(birthISO);

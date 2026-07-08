@@ -26,6 +26,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: "/people", label: "People", icon: Users },
   { to: "/events", label: "Events", icon: CalendarDays },
   { to: "/reminders", label: "Reminders", icon: Bell },
+  { to: "/holidays", label: "Holidays", icon: CalendarDays },
   { to: "/tags", label: "Tags", icon: Tag },
   { to: "/settings", label: "Settings", icon: Settings },
 ];

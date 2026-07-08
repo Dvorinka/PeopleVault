@@ -20,11 +20,12 @@ import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { CountrySelect } from "@/components/common/CountrySelect";
 import { useAuth } from "@/lib/auth";
 import { useTheme } from "@/lib/theme";
 import { useToast } from "@/hooks/use-toast";
 import { api, apiError } from "@/lib/api";
-import { LEAD_DAY_OPTIONS, NAMEDAY_COUNTRIES } from "@/lib/constants";
+import { COUNTRY_FLAG, LEAD_DAY_OPTIONS, countryName } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
 const prefersReducedMotion =
@@ -311,24 +312,30 @@ function CountryStep({
         title="Which nameday calendar?"
         description="Namedays are celebrated in many cultures. Pick the country whose calendar fits your circle."
       />
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        {NAMEDAY_COUNTRIES.map((c) => (
-          <button
-            key={c.code}
-            type="button"
-            onClick={() => setCountry(c.code)}
-            className={cn(
-              "flex flex-col items-start gap-1 rounded-xl border p-4 text-left transition-all",
-              country === c.code
-                ? "border-primary bg-primary/5 shadow-soft ring-2 ring-primary/20"
-                : "border-border bg-card hover:border-primary/40 hover:bg-accent"
-            )}
-            aria-pressed={country === c.code}
-          >
-            <span className="font-serif text-lg font-semibold">{c.code}</span>
-            <span className="text-xs text-muted-foreground">{c.name}</span>
-          </button>
-        ))}
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="onboard-country">Country</Label>
+          <CountrySelect
+            id="onboard-country"
+            value={country}
+            onValueChange={setCountry}
+            className="w-full"
+          />
+        </div>
+        {country ? (
+          <div className="flex items-center gap-3 rounded-xl border border-primary/30 bg-primary/5 p-4">
+            <span aria-hidden="true" className="text-3xl leading-none">
+              {COUNTRY_FLAG[country] ?? ""}
+            </span>
+            <div>
+              <p className="font-serif text-lg font-semibold">{countryName(country)}</p>
+              <p className="text-xs text-muted-foreground">{country}</p>
+            </div>
+          </div>
+        ) : null}
+        <p className="text-xs text-muted-foreground">
+          19 countries supported. Type to search if you don't see yours listed.
+        </p>
       </div>
     </div>
   );
