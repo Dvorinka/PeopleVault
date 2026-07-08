@@ -120,12 +120,14 @@ type Provider interface {
 ```
 
 **Service logic:**
-1. Check DragonflyDB cache (key: `nameday:date:{month}:{day}`, TTL 24h)
+1. If DragonflyDB available: check cache (key: `nameday:date:{month}:{day}`, TTL 24h)
 2. Cache hit → return
-3. Cache miss → call Abalin API
-4. API success → cache result, return
+3. Cache miss (or no DragonflyDB) → call Abalin API
+4. API success → cache result if DragonflyDB available, return
 5. API failure → fall back to CSV data (if loaded)
 6. No CSV → return error
+
+**If DragonflyDB is not configured (DRAGONFLY_ADDR empty):** skip caching, call API directly on every request. The CSV fallback still works. Rate limiting falls back to in-memory.
 
 **Why keep CSVs:**
 - Offline fallback when API is down
@@ -151,9 +153,10 @@ internal/holiday/
 ```
 
 **Cache strategy:**
-- Key: `holiday:{country}:{year}`, TTL 7 days (holidays don't change mid-year often)
+- If DragonflyDB available: key `holiday:{country}:{year}`, TTL 7 days
 - Cache the full year's holiday list per country
-- On cache miss: fetch from API, cache, return
+- On cache miss (or no DragonflyDB): fetch from API, cache if available, return
+- Without DragonflyDB: fetch from API on every request (holidays are read-only, low frequency)
 
 **New API endpoints:**
 - `GET /holidays/{country}/{year}` — list holidays for country+year
@@ -273,7 +276,7 @@ Optional future migration: add `holidays_synced` boolean to `user_settings` if w
 3. Refactor `internal/nameday/csv.go` — keep as fallback provider
 4. Create `internal/nameday/service.go` — cache + fallback orchestration
 5. Create `internal/holiday/client.go` + `service.go` — date.nager.at integration
-6. Add DragonflyDB caching for both (TTL: namedays 24h, holidays 7d)
+6. Add optional DragonflyDB caching for both (TTL: namedays 24h, holidays 7d). If DRAGONFLY_ADDR is empty, skip caching — backend works cache-free.
 7. Update handlers: `/namedays/{country}`, add `/namedays/search`, add `/holidays/{country}/{year}`
 8. Update OpenAPI spec
 9. Regenerate API client types
@@ -289,8 +292,8 @@ Optional future migration: add `holidays_synced` boolean to `user_settings` if w
 |---|---|
 | Abalin API goes down | CSV fallback for core 6 countries |
 | Abalin API disappears | CSV data still works; switch to another provider |
-| Abalin rate limits | DragonflyDB cache (24h TTL) — at most 366 calls/year per deployment |
-| Nager.Date goes down | DragonflyDB cache (7d TTL) — stale holidays better than no holidays |
+| Abalin rate limits | DragonflyDB cache (24h TTL) if available — at most 366 calls/year per deployment. Without cache, calls are per-request but low-frequency. |
+| Nager.Date goes down | DragonflyDB cache (7d TTL) if available — stale holidays better than no holidays. Without cache, holidays simply unavailable until API recovers. |
 | API response format changes | Parse defensively, log errors, fall back gracefully |
 | Privacy (external API calls) | Backend proxies all calls; frontend never calls external APIs directly |
 

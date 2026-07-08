@@ -15,7 +15,7 @@ Privacy is a core feature, not a marketing bullet point.
 | Frontend | React 18 + Vite + TypeScript (strict) + Tailwind CSS + shadcn/ui |
 | Backend | Go + Gin, structured `zap` logging |
 | Database | PostgreSQL + sqlc + goose (versioned migrations) |
-| Cache | DragonflyDB (Redis-compatible, multi-threaded) |
+| Cache | DragonflyDB (optional, Redis-compatible) — backend runs cache-free by default |
 | Auth | Better Auth (cookie sessions); OAuth/Passkey-ready architecture |
 | API contract | OpenAPI 3.1 — single source of truth, TS client generated |
 | Infra | Docker Compose (`docker compose up` runs the full stack) + Nginx |
@@ -30,7 +30,11 @@ docker compose -f infra/docker-compose.yml up --build
 - Frontend: http://localhost:5173 (dev) / http://localhost:8080 (via Nginx)
 - Backend API: http://localhost:8081
 - Postgres: localhost:5432
-- DragonflyDB: localhost:6379
+
+With optional DragonflyDB cache:
+```bash
+docker compose -f infra/docker-compose.yml -f infra/docker-compose.dragonfly.yml up --build
+```
 
 ### Local development (without Docker)
 
@@ -111,7 +115,7 @@ cd apps/frontend && pnpm test
 
 | Dimension | Status |
 |---|---|
-| Performance | Lazy loading, code splitting, indexed queries, DragonflyDB hot-path cache |
+| Performance | Lazy loading, code splitting, indexed queries, optional DragonflyDB cache |
 | Security | CSRF, CSP, rate limiting, parameterized queries, secure sessions, audit log |
 | Maintainability | Small explicit packages, OpenAPI contract, versioned migrations, strict TS |
 | Developer Experience | `docker compose up`, typed end-to-end, clear docs, conventional commits |

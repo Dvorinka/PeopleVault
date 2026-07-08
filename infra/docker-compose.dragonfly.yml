@@ -1,0 +1,32 @@
+# Optional DragonflyDB cache layer.
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.dragonfly.yml up --build
+#
+# This adds the DragonflyDB service and wires the backend to use it.
+# Without this override, the backend runs cache-free (DRAGONFLY_ADDR empty).
+services:
+  dragonfly:
+    image: docker.dragonflydb.io/dragonflydb/dragonfly:latest
+    restart: unless-stopped
+    command: ["--default_db_testfilename", "''"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - dragonflydata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    environment:
+      DRAGONFLY_ADDR: dragonfly:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      dragonfly:
+        condition: service_healthy
+
+volumes:
+  dragonflydata:

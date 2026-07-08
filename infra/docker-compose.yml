@@ -1,3 +1,6 @@
+# Default stack — no cache layer. Simplest local setup.
+# For caching (DragonflyDB), use the override:
+#   docker compose -f docker-compose.yml -f docker-compose.dragonfly.yml up --build
 services:
   postgres:
     image: postgres:16-alpine
@@ -16,20 +19,6 @@ services:
       timeout: 3s
       retries: 10
 
-  dragonfly:
-    image: docker.dragonflydb.io/dragonflydb/dragonfly:latest
-    restart: unless-stopped
-    command: ["--default_db_testfilename", "''"]
-    ports:
-      - "6379:6379"
-    volumes:
-      - dragonflydata:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-
   backend:
     build:
       context: ../apps/backend
@@ -39,13 +28,12 @@ services:
       - ../.env
     environment:
       POSTGRES_HOST: postgres
-      DRAGONFLY_ADDR: dragonfly:6379
+      # DRAGONFLY_ADDR empty = no cache, backend runs without it
+      DRAGONFLY_ADDR: ${DRAGONFLY_ADDR:-}
     ports:
       - "8081:8081"
     depends_on:
       postgres:
-        condition: service_healthy
-      dragonfly:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8081/healthz"]
@@ -78,4 +66,3 @@ services:
 
 volumes:
   pgdata:
-  dragonflydata:

@@ -10,14 +10,15 @@ Follow the `tdvorak-fullstack` skill (locked stack) at all times.
 | Frontend | React 18 + Vite + TS strict + Tailwind + shadcn/ui |
 | Backend | Go + Gin, `zap` logging |
 | DB | PostgreSQL + sqlc + goose (versioned migrations only) |
-| Cache | DragonflyDB (Redis-compatible) |
+| Cache | DragonflyDB (optional, Redis-compatible) — backend runs cache-free by default |
 | Auth | Better Auth (cookie sessions); OAuth/Passkey-ready |
 | API contract | OpenAPI 3.1 → generate TS client + types (never hand-duplicate) |
 | Infra | Docker Compose + Nginx |
 
 ## Commands
 
-- Full stack: `docker compose -f infra/docker-compose.yml up --build`
+- Full stack (no cache): `docker compose -f infra/docker-compose.yml up --build`
+- Full stack (with DragonflyDB cache): `docker compose -f infra/docker-compose.yml -f infra/docker-compose.dragonfly.yml up --build`
 - Backend: `cd apps/backend && go run ./cmd/server`
 - Backend tests: `cd apps/backend && go test ./...`
 - Frontend: `cd apps/frontend && pnpm install && pnpm dev`
@@ -43,3 +44,4 @@ Follow the `tdvorak-fullstack` skill (locked stack) at all times.
 - Namedays are country-aware (CZ, SK, PL, HU, AT, DE) and extensible — data in `/data/namedays`.
 - Reminders architected for future push/email/SMS delivery.
 - Family-tree visualization is a future enhancement — data model already supports relationship links.
+- DragonflyDB is optional. If `DRAGONFLY_ADDR` is empty, backend runs cache-free (rate limiting falls back to in-memory, nameday/holiday API caching disabled).
