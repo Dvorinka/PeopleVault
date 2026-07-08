@@ -4,7 +4,16 @@ import type { components } from "@peoplevault/api-client";
 export type EventType = NonNullable<components["schemas"]["Event"]["type"]>;
 export type TimelineType = NonNullable<components["schemas"]["TimelineEntry"]["type"]>;
 export type Theme = NonNullable<components["schemas"]["UserSettings"]["theme"]>;
-export type HolidayType = NonNullable<components["schemas"]["Holiday"]["type"]>;
+// Holiday types come as an array of strings in `Holiday.holidayTypes` (the
+// backend OpenAPI schema no longer has a single `type` field). The valid
+// values come from date.nager.at.
+export type HolidayType =
+  | "Public"
+  | "Bank"
+  | "School"
+  | "Authorities"
+  | "Optional"
+  | "Observance";
 
 export interface CountryInfo {
   code: string;

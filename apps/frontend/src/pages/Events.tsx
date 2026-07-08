@@ -162,11 +162,13 @@ export default function Events(): React.ReactElement {
         try {
           const { data, error } = await api.POST("/events", {
             body: {
-              title: h.name,
+              title: h.name ?? "",
               type: "holiday",
-              eventDate: h.date,
+              eventDate: h.date ?? "",
               isRecurring: true,
-              notes: h.localName && h.localName !== h.name ? h.localName : undefined,
+              notes: h.holidayTypes && h.holidayTypes.length > 0
+                ? h.holidayTypes.join(", ")
+                : undefined,
             },
           });
           if (error) throw new Error(apiError(error));

@@ -14,13 +14,25 @@ import { cn } from "@/lib/utils";
 
 type NamedaySearchResult = components["schemas"]["NamedaySearchResult"];
 
+/**
+ * A single flattened nameday match: one country + one date/name pair.
+ * The backend returns {@link NamedaySearchResult} entries grouped by country
+ * with a `dates` array; we flatten them for display and selection.
+ */
+export interface NamedayMatch {
+  country: string;
+  day: number;
+  month: number;
+  name: string;
+}
+
 export interface NamedaySearchProps {
   /** Initial query (e.g. the person's first name) to pre-seed the search. */
   initialQuery?: string;
   /** Restrict results to a single country code (case-insensitive). */
   country?: string | null;
   /** Called when the user picks a result. */
-  onSelect?: (result: NamedaySearchResult) => void;
+  onSelect?: (result: NamedayMatch) => void;
   /** Compact mode (used inside dialogs). */
   compact?: boolean;
   className?: string;
@@ -29,7 +41,7 @@ export interface NamedaySearchProps {
 
 interface GroupedResult {
   country: string;
-  results: NamedaySearchResult[];
+  results: NamedayMatch[];
 }
 
 export function NamedaySearch({
@@ -43,7 +55,7 @@ export function NamedaySearch({
   const { toast } = useToast();
   const [query, setQuery] = React.useState(initialQuery);
   const debouncedQuery = useDebouncedValue(query, 300);
-  const [results, setResults] = React.useState<NamedaySearchResult[]>([]);
+  const [results, setResults] = React.useState<NamedayMatch[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [hasSearched, setHasSearched] = React.useState(false);
@@ -72,10 +84,21 @@ export function NamedaySearch({
         });
         if (!active) return;
         if (e) throw new Error(apiError(e));
-        const all = (data?.results ?? []) as NamedaySearchResult[];
+        // The API returns NamedaySearchResult[] directly (one entry per
+        // matching country, each with a `dates` array). Flatten into
+        // individual NamedayMatch entries for display/selection.
+        const grouped = (data ?? []) as NamedaySearchResult[];
+        const all: NamedayMatch[] = grouped.flatMap((r) =>
+          (r.dates ?? []).map((d) => ({
+            country: (r.country ?? "").toUpperCase(),
+            day: d.day ?? 0,
+            month: d.month ?? 0,
+            name: d.name ?? "",
+          }))
+        );
         const filtered = country
           ? all.filter(
-              (r) => r.country?.toUpperCase() === country.toUpperCase()
+              (r) => r.country.toUpperCase() === country.toUpperCase()
             )
           : all;
         setResults(filtered);
@@ -100,7 +123,7 @@ export function NamedaySearch({
   }, [debouncedQuery, country, toast]);
 
   const grouped = React.useMemo<GroupedResult[]>(() => {
-    const map = new Map<string, NamedaySearchResult[]>();
+    const map = new Map<string, NamedayMatch[]>();
     for (const r of results) {
       const key = (r.country ?? "").toUpperCase();
       const list = map.get(key);
