@@ -13,6 +13,7 @@ import (
 
 	"github.com/dvorinka/peoplevault/internal/config"
 	"github.com/dvorinka/peoplevault/internal/handler"
+	"github.com/dvorinka/peoplevault/internal/holiday"
 	"github.com/dvorinka/peoplevault/internal/middleware"
 	"github.com/dvorinka/peoplevault/internal/nameday"
 	"github.com/dvorinka/peoplevault/internal/repo"
@@ -25,11 +26,12 @@ import (
 
 // Deps bundles all runtime dependencies handed to the server.
 type Deps struct {
-	Cfg    config.Config
-	Log    *zap.Logger
-	Store  *repo.Store
-	RDB    *redis.Client
-	Loader *nameday.Loader
+	Cfg      config.Config
+	Log      *zap.Logger
+	Store    *repo.Store
+	RDB      *redis.Client
+	Namedays *nameday.Service
+	Holidays *holiday.Service
 }
 
 // New builds the Gin engine with all routes registered.
@@ -59,8 +61,9 @@ func New(d Deps) *gin.Engine {
 	timelineH := handler.NewTimelineHandler(q, d.Log, v)
 	relH := handler.NewRelationshipHandler(q, d.Log, v)
 	attachH := handler.NewAttachmentHandler(q, d.Log)
-	namedayH := handler.NewNamedayHandler(d.Loader, d.Log)
-	dashH := handler.NewDashboardHandler(q, d.Loader, d.Log)
+	namedayH := handler.NewNamedayHandler(d.Namedays, d.Log)
+	holidayH := handler.NewHolidayHandler(d.Holidays, d.Log)
+	dashH := handler.NewDashboardHandler(q, d.Namedays, d.Holidays, d.Log)
 
 	// Public routes (no auth).
 	r.GET("/healthz", handler.Healthz)
@@ -78,7 +81,15 @@ func New(d Deps) *gin.Engine {
 	namedays := r.Group("/namedays")
 	{
 		namedays.GET("", namedayH.ListCountries)
+		namedays.GET("/search", namedayH.Search)
 		namedays.GET("/:country", namedayH.GetCountry)
+	}
+
+	// Public holiday routes (date.nager.at proxy, no auth required).
+	holidays := r.Group("/holidays")
+	{
+		holidays.GET("/:country/:year", holidayH.List)
+		holidays.GET("/:country", holidayH.ListCurrentYear)
 	}
 
 	// Authenticated routes.

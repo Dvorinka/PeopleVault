@@ -1,6 +1,7 @@
 package nameday
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -138,5 +139,64 @@ func TestNewLoaderEmptyDir(t *testing.T) {
 	dir := t.TempDir()
 	if _, err := NewLoader(dir); err == nil {
 		t.Fatal("expected error for empty dir, got nil")
+	}
+}
+
+func TestLoaderGetByDate(t *testing.T) {
+	dir := t.TempDir()
+	writeTestCSV(t, dir, "xx", [][3]string{
+		{"1", "1", "Alice;Bob"},
+		{"2", "29", "Leap"},
+	})
+	writeTestCSV(t, dir, "yy", [][3]string{
+		{"1", "1", "Zara"},
+	})
+	l, err := NewLoader(dir)
+	if err != nil {
+		t.Fatalf("NewLoader error: %v", err)
+	}
+
+	got, err := l.GetByDate(context.Background(), 1, 1)
+	if err != nil {
+		t.Fatalf("GetByDate error: %v", err)
+	}
+	if got["xx"] != "Alice, Bob" {
+		t.Errorf("xx = %q, want %q", got["xx"], "Alice, Bob")
+	}
+	if got["yy"] != "Zara" {
+		t.Errorf("yy = %q, want %q", got["yy"], "Zara")
+	}
+
+	if _, err := l.GetByDate(context.Background(), 5, 5); err == nil {
+		t.Fatal("expected error for date with no entries")
+	}
+}
+
+func TestLoaderSearchByName(t *testing.T) {
+	dir := t.TempDir()
+	writeTestCSV(t, dir, "xx", [][3]string{
+		{"1", "1", "Alice;Bob"},
+		{"5", "5", "Alicia"},
+	})
+	writeTestCSV(t, dir, "yy", [][3]string{
+		{"1", "1", "Zara"},
+	})
+	l, err := NewLoader(dir)
+	if err != nil {
+		t.Fatalf("NewLoader error: %v", err)
+	}
+
+	got, err := l.SearchByName(context.Background(), "ali")
+	if err != nil {
+		t.Fatalf("SearchByName error: %v", err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("expected 1 country match, got %d: %v", len(got), got)
+	}
+	if got[0].Country != "xx" {
+		t.Errorf("country = %q, want xx", got[0].Country)
+	}
+	if len(got[0].Dates) != 2 {
+		t.Errorf("expected 2 date matches, got %d", len(got[0].Dates))
 	}
 }

@@ -2,9 +2,11 @@ package handler
 
 import (
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/dvorinka/peoplevault/internal/db/sqlc"
+	"github.com/dvorinka/peoplevault/internal/holiday"
 	"github.com/dvorinka/peoplevault/internal/nameday"
 	"github.com/dvorinka/peoplevault/internal/service"
 	"github.com/gin-gonic/gin"
@@ -13,14 +15,15 @@ import (
 
 // DashboardHandler aggregates dashboard data for the authenticated user.
 type DashboardHandler struct {
-	q      *sqlc.Queries
-	loader *nameday.Loader
-	log    *zap.Logger
+	q        *sqlc.Queries
+	namedays *nameday.Service
+	holidays *holiday.Service
+	log      *zap.Logger
 }
 
 // NewDashboardHandler constructs a DashboardHandler.
-func NewDashboardHandler(q *sqlc.Queries, loader *nameday.Loader, log *zap.Logger) *DashboardHandler {
-	return &DashboardHandler{q: q, loader: loader, log: log}
+func NewDashboardHandler(q *sqlc.Queries, namedays *nameday.Service, holidays *holiday.Service, log *zap.Logger) *DashboardHandler {
+	return &DashboardHandler{q: q, namedays: namedays, holidays: holidays, log: log}
 }
 
 type dashboardBirthday struct {
@@ -42,6 +45,7 @@ type dashboardResp struct {
 	UpcomingBirthdays   []dashboardBirthday `json:"upcomingBirthdays"`
 	UpcomingAnniversaries []dashboardBirthday `json:"upcomingAnniversaries"`
 	TodaysNamedays      []namedayResp        `json:"todaysNamedays"`
+	TodaysHolidays      []holiday.Holiday    `json:"todaysHolidays"`
 	TodaysEvents        []eventResp          `json:"todaysEvents"`
 	RecentlyAdded       []personResp         `json:"recentlyAdded"`
 	PendingReminders    []reminderResp       `json:"pendingReminders"`
@@ -69,6 +73,7 @@ func (h *DashboardHandler) Get(c *gin.Context) {
 		UpcomingBirthdays:   []dashboardBirthday{},
 		UpcomingAnniversaries: []dashboardBirthday{},
 		TodaysNamedays:      []namedayResp{},
+		TodaysHolidays:      []holiday.Holiday{},
 		TodaysEvents:        []eventResp{},
 		RecentlyAdded:       []personResp{},
 		PendingReminders:    []reminderResp{},
@@ -140,11 +145,31 @@ func (h *DashboardHandler) Get(c *gin.Context) {
 		resp.Stats.UpcomingThisMonth = upcomingThisMonth
 	}
 
-	// Today's namedays.
-	if e, ok := h.loader.Lookup(country, int(today.Month()), today.Day()); ok {
-		resp.TodaysNamedays = append(resp.TodaysNamedays, namedayResp{
-			Month: e.Month, Day: e.Day, Names: e.Names,
-		})
+	// Today's namedays (via Service: Abalin API primary, CSV fallback).
+	countryLower := strings.ToLower(country)
+	if all, err := h.namedays.GetToday(ctx); err == nil {
+		if names, ok := all[countryLower]; ok {
+			resp.TodaysNamedays = append(resp.TodaysNamedays, namedayResp{
+				Month: int(today.Month()), Day: today.Day(), Names: splitComma(names),
+			})
+		}
+	} else {
+		h.log.Warn("dashboard nameday lookup failed", zap.String("country", countryLower), zap.Error(err))
+	}
+
+	// Today's holidays for the user's nameday country setting.
+	if h.holidays != nil && country != "" {
+		yearHolidays, err := h.holidays.List(ctx, countryLower, today.Year())
+		if err != nil {
+			h.log.Warn("dashboard holiday lookup failed", zap.String("country", countryLower), zap.Error(err))
+		} else {
+			todayStr := today.Format("2006-01-02")
+			for _, hd := range yearHolidays {
+				if hd.Date == todayStr {
+					resp.TodaysHolidays = append(resp.TodaysHolidays, hd)
+				}
+			}
+		}
 	}
 
 	// Today's events.
