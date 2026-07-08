@@ -21,10 +21,17 @@ const (
 // ErrPasswordTooShort is returned when a password does not meet the minimum length.
 var ErrPasswordTooShort = errors.New("password must be at least 12 characters")
 
-// HashPassword bcrypts a plaintext password, enforcing a minimum length.
+// ErrPasswordTooLong is returned when a password exceeds bcrypt's 72-byte input limit.
+var ErrPasswordTooLong = errors.New("password too long (max 72 bytes)")
+
+// HashPassword bcrypts a plaintext password, enforcing a minimum length and
+// bcrypt's hard 72-byte input limit.
 func HashPassword(plain string) (string, error) {
 	if len(plain) < 12 {
 		return "", ErrPasswordTooShort
+	}
+	if len(plain) > 72 {
+		return "", ErrPasswordTooLong
 	}
 	b, err := bcrypt.GenerateFromPassword([]byte(plain), bcryptCost)
 	if err != nil {

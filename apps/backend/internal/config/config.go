@@ -58,11 +58,17 @@ func Load() (Config, error) {
 	if err != nil {
 		return cfg, fmt.Errorf("AUTH_SESSION_TTL: %w", err)
 	}
+	if ttl <= 0 {
+		return cfg, fmt.Errorf("AUTH_SESSION_TTL must be a positive number of seconds")
+	}
 	cfg.AuthSessionTTL = time.Duration(ttl) * time.Second
 
 	remTTL, err := strconv.Atoi(getenv("AUTH_REMEMBER_ME_TTL", "7776000"))
 	if err != nil {
 		return cfg, fmt.Errorf("AUTH_REMEMBER_ME_TTL: %w", err)
+	}
+	if remTTL <= 0 {
+		return cfg, fmt.Errorf("AUTH_REMEMBER_ME_TTL must be a positive number of seconds")
 	}
 	cfg.AuthRememberMeTTL = time.Duration(remTTL) * time.Second
 
@@ -70,12 +76,18 @@ func Load() (Config, error) {
 	if err != nil {
 		return cfg, fmt.Errorf("AUTH_RATE_LIMIT_PER_MIN: %w", err)
 	}
+	if cfg.AuthRateLimitPerMin <= 0 {
+		return cfg, fmt.Errorf("AUTH_RATE_LIMIT_PER_MIN must be a positive integer")
+	}
 
 	if cfg.DatabaseURL == "" {
 		return cfg, fmt.Errorf("DATABASE_URL is required")
 	}
 	if cfg.AuthSecret == "" {
 		return cfg, fmt.Errorf("AUTH_SECRET is required")
+	}
+	if len(cfg.AuthSecret) < 32 {
+		return cfg, fmt.Errorf("AUTH_SECRET must be at least 32 characters")
 	}
 
 	return cfg, nil

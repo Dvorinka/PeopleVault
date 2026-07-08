@@ -66,11 +66,7 @@ type eventInput struct {
 	Notes          string `json:"notes"`
 }
 
-func (in eventInput) toCreateParams(owner pgtype.UUID) sqlc.CreateEventParams {
-	var personID pgtype.UUID
-	if in.PersonID != "" {
-		_ = personID.Scan(in.PersonID)
-	}
+func (in eventInput) toCreateParams(owner pgtype.UUID, personID pgtype.UUID) sqlc.CreateEventParams {
 	return sqlc.CreateEventParams{
 		OwnerUserID:    owner,
 		PersonID:       personID,
@@ -83,11 +79,7 @@ func (in eventInput) toCreateParams(owner pgtype.UUID) sqlc.CreateEventParams {
 	}
 }
 
-func (in eventInput) toUpdateParams(id, owner pgtype.UUID) sqlc.UpdateEventParams {
-	var personID pgtype.UUID
-	if in.PersonID != "" {
-		_ = personID.Scan(in.PersonID)
-	}
+func (in eventInput) toUpdateParams(id, owner pgtype.UUID, personID pgtype.UUID) sqlc.UpdateEventParams {
 	recurring := false
 	if in.IsRecurring != nil {
 		recurring = *in.IsRecurring
@@ -103,6 +95,20 @@ func (in eventInput) toUpdateParams(id, owner pgtype.UUID) sqlc.UpdateEventParam
 		ID:             id,
 		OwnerUserID:    owner,
 	}
+}
+
+// parsePersonID validates an optional person_id string from the request body.
+// Returns the parsed UUID and a bool indicating success. An empty string is
+// valid (person_id is nullable) and yields an invalid UUID.
+func parsePersonID(s string) (pgtype.UUID, bool) {
+	var pid pgtype.UUID
+	if s == "" {
+		return pid, true
+	}
+	if err := pid.Scan(s); err != nil {
+		return pid, false
+	}
+	return pid, true
 }
 
 // List returns events for the owner, optionally filtered by person or upcoming window.
@@ -186,7 +192,12 @@ func (h *EventHandler) Create(c *gin.Context) {
 		fail(c, http.StatusBadRequest, "invalid eventDate")
 		return
 	}
-	e, err := h.q.CreateEvent(c.Request.Context(), in.toCreateParams(owner))
+	pid, ok := parsePersonID(in.PersonID)
+	if !ok {
+		fail(c, http.StatusBadRequest, "invalid person_id")
+		return
+	}
+	e, err := h.q.CreateEvent(c.Request.Context(), in.toCreateParams(owner, pid))
 	if err != nil {
 		status, msg := mapDBError(err)
 		fail(c, status, msg)
@@ -218,7 +229,12 @@ func (h *EventHandler) Update(c *gin.Context) {
 		fail(c, http.StatusBadRequest, "invalid eventDate")
 		return
 	}
-	e, err := h.q.UpdateEvent(c.Request.Context(), in.toUpdateParams(id, owner))
+	pid, ok := parsePersonID(in.PersonID)
+	if !ok {
+		fail(c, http.StatusBadRequest, "invalid person_id")
+		return
+	}
+	e, err := h.q.UpdateEvent(c.Request.Context(), in.toUpdateParams(id, owner, pid))
 	if err != nil {
 		status, msg := mapDBError(err)
 		fail(c, status, msg)

@@ -180,6 +180,11 @@ func (h *PersonHandler) List(c *gin.Context) {
 	if page < 1 {
 		page = 1
 	}
+	const maxPage = 10000
+	if page > maxPage {
+		fail(c, http.StatusBadRequest, "page too large")
+		return
+	}
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "24"))
 	if pageSize < 1 || pageSize > 100 {
 		pageSize = 24
@@ -200,9 +205,18 @@ func (h *PersonHandler) List(c *gin.Context) {
 	for _, p := range people {
 		items = append(items, h.toPersonResp(p))
 	}
+
+	// Total is the uncapped owner-wide count, not the length of the current
+	// page (which is capped by pageSize).
+	total, err := h.q.CountPeopleByOwner(c.Request.Context(), owner)
+	if err != nil {
+		fail(c, http.StatusInternalServerError, "failed to count people")
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"items":    items,
-		"total":    len(items),
+		"total":    int(total),
 		"page":     page,
 		"pageSize": pageSize,
 	})
@@ -229,7 +243,34 @@ func (h *PersonHandler) Create(c *gin.Context) {
 		fail(c, status, msg)
 		return
 	}
-	c.JSON(http.StatusCreated, h.toPersonResp(person))
+
+	// Associate any requested tags via the person_tags junction.
+	var tags []sqlc.Tag
+	if len(in.TagIDs) > 0 {
+		for _, tidStr := range in.TagIDs {
+			var tid pgtype.UUID
+			if err := tid.Scan(tidStr); err != nil {
+				fail(c, http.StatusBadRequest, "invalid tagId")
+				return
+			}
+			if err := h.q.AttachTagToPerson(c.Request.Context(), sqlc.AttachTagToPersonParams{
+				PersonID: person.ID,
+				TagID:    tid,
+			}); err != nil {
+				h.log.Warn("failed to attach tag to person", zap.Error(err), zap.String("person_id", person.ID.String()))
+			}
+		}
+		listed, lerr := h.q.ListTagsForPerson(c.Request.Context(), sqlc.ListTagsForPersonParams{
+			PersonID:    person.ID,
+			OwnerUserID: owner,
+		})
+		if lerr != nil {
+			h.log.Warn("failed to list tags for person", zap.Error(lerr), zap.String("person_id", person.ID.String()))
+		} else {
+			tags = listed
+		}
+	}
+	c.JSON(http.StatusCreated, h.toPersonRespWithTags(person, tags))
 }
 
 // Get returns a single person by id (owner-scoped).
@@ -251,10 +292,13 @@ func (h *PersonHandler) Get(c *gin.Context) {
 		fail(c, status, msg)
 		return
 	}
-	tags, _ := h.q.ListTagsForPerson(c.Request.Context(), sqlc.ListTagsForPersonParams{
+	tags, err := h.q.ListTagsForPerson(c.Request.Context(), sqlc.ListTagsForPersonParams{
 		PersonID:    id,
 		OwnerUserID: owner,
 	})
+	if err != nil {
+		h.log.Warn("failed to list tags for person", zap.Error(err), zap.String("person_id", id.String()))
+	}
 	c.JSON(http.StatusOK, h.toPersonRespWithTags(person, tags))
 }
 

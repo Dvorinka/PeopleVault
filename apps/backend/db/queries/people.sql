@@ -123,6 +123,9 @@ WHERE owner_user_id = sqlc.arg('owner_user_id')
 ORDER BY created_at DESC
 LIMIT sqlc.arg('limit');
 
+-- name: CountPeopleByOwner :one
+SELECT COUNT(*) FROM people WHERE owner_user_id = sqlc.arg('owner_user_id');
+
 -- name: SetFavorite :exec
 UPDATE people
 SET is_favorite = sqlc.arg('is_favorite'), updated_at = now()
