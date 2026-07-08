@@ -14,8 +14,8 @@
 coverage.out
 cover.out
 
-# Generated sqlc code (regenerated from queries)
-/apps/backend/internal/db/sqlc/
+# sqlc generated code IS committed — it's needed for `go build`.
+# Regenerate with: cd apps/backend && sqlc generate
 
 # Node / Frontend
 node_modules/

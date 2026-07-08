@@ -11,9 +11,9 @@ import (
 
 // Config holds all runtime configuration loaded from the environment.
 type Config struct {
-	AppEnv      string
-	AppPort     string
-	AppLogLevel string
+	AppEnv       string
+	AppPort      string
+	AppLogLevel  string
 	AppPublicURL string
 
 	DatabaseURL string
@@ -27,8 +27,8 @@ type Config struct {
 	AuthRememberMeTTL   time.Duration
 	AuthRateLimitPerMin int
 
-	CORSAllowedOrigins  []string
-	CSRFTrustedOrigins  []string
+	CORSAllowedOrigins []string
+	CSRFTrustedOrigins []string
 
 	NamedayDataPath string
 }
@@ -36,14 +36,14 @@ type Config struct {
 // Load reads configuration from environment variables, applying sensible defaults.
 func Load() (Config, error) {
 	cfg := Config{
-		AppEnv:      getenv("APP_ENV", "development"),
-		AppPort:     getenv("APP_PORT", "8081"),
-		AppLogLevel: getenv("APP_LOG_LEVEL", "info"),
+		AppEnv:       getenv("APP_ENV", "development"),
+		AppPort:      getenv("APP_PORT", "8081"),
+		AppLogLevel:  getenv("APP_LOG_LEVEL", "info"),
 		AppPublicURL: getenv("APP_PUBLIC_URL", "http://localhost:8080"),
 
 		DatabaseURL: getenv("DATABASE_URL", ""),
 
-		DragonflyAddr:     getenv("DRAGONFLY_ADDR", "localhost:6379"),
+		DragonflyAddr:     getenv("DRAGONFLY_ADDR", ""),
 		DragonflyPassword: getenv("DRAGONFLY_PASSWORD", ""),
 
 		AuthSecret:        getenv("AUTH_SECRET", ""),
@@ -83,6 +83,9 @@ func Load() (Config, error) {
 
 // IsProduction reports whether the app runs in production mode.
 func (c Config) IsProduction() bool { return c.AppEnv == "production" }
+
+// HasCache reports whether a DragonflyDB/Redis address is configured.
+func (c Config) HasCache() bool { return c.DragonflyAddr != "" }
 
 func getenv(key, def string) string {
 	if v, ok := os.LookupEnv(key); ok && v != "" {

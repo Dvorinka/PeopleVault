@@ -54,17 +54,23 @@ func main() {
 	log.Info("postgres connected")
 	store := repo.NewStore(pool)
 
-	// DragonflyDB (Redis-compatible).
-	rdb := redis.NewClient(&redis.Options{
-		Addr:     cfg.DragonflyAddr,
-		Password: cfg.DragonflyPassword,
-	})
-	pingCtx, pingCancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer pingCancel()
-	if err := rdb.Ping(pingCtx).Err(); err != nil {
-		log.Warn("dragonfly ping failed (rate limiting will fail open)", zap.Error(err))
+	// DragonflyDB (Redis-compatible) — optional. If DRAGONFLY_ADDR is empty,
+	// the backend runs cache-free. Rate limiting falls back to fail-open (no limit).
+	var rdb *redis.Client
+	if cfg.HasCache() {
+		rdb = redis.NewClient(&redis.Options{
+			Addr:     cfg.DragonflyAddr,
+			Password: cfg.DragonflyPassword,
+		})
+		pingCtx, pingCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer pingCancel()
+		if err := rdb.Ping(pingCtx).Err(); err != nil {
+			log.Warn("dragonfly ping failed (rate limiting will fail open)", zap.Error(err))
+		} else {
+			log.Info("dragonfly connected")
+		}
 	} else {
-		log.Info("dragonfly connected")
+		log.Info("dragonfly not configured — running cache-free (rate limiting disabled)")
 	}
 
 	// Nameday loader: prefer explicit path, else resolve repo-relative data dir.
