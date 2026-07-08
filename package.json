@@ -1,0 +1,13 @@
+{
+  "name": "peoplevault",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm --filter @peoplevault/frontend dev",
+    "build": "pnpm --filter @peoplevault/api-client build && pnpm --filter @peoplevault/frontend build",
+    "test": "pnpm --filter @peoplevault/frontend test",
+    "gen:api": "pnpm --filter @peoplevault/api-client gen"
+  },
+  "packageManager": "pnpm@10.34.4"
+}
