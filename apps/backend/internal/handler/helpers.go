@@ -4,6 +4,7 @@ package handler
 import (
 	"errors"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5"
@@ -111,3 +112,6 @@ func tsToStr(t pgtype.Timestamptz) string {
 	}
 	return t.Time.Format("2006-01-02T15:04:05Z07:00")
 }
+
+// nowUTC returns the current time in UTC.
+func nowUTC() time.Time { return time.Now().UTC() }

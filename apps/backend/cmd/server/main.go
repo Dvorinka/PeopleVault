@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/dvorinka/peoplevault/internal/config"
+	"github.com/dvorinka/peoplevault/internal/holiday"
 	"github.com/dvorinka/peoplevault/internal/logger"
 	"github.com/dvorinka/peoplevault/internal/migrate"
 	"github.com/dvorinka/peoplevault/internal/nameday"
@@ -98,12 +99,20 @@ func main() {
 	}
 	log.Info("nameday calendars loaded", zap.Strings("countries", loader.Countries()))
 
+	// Nameday service: Abalin API primary + CSV fallback + optional cache.
+	abalin := nameday.NewAbalinClient("")
+	namedaySvc := nameday.NewService(abalin, loader, rdb, log)
+
+	// Holiday service: date.nager.at v4 + optional cache.
+	holidaySvc := holiday.NewService(holiday.NewClient(""), rdb, log)
+
 	deps := server.Deps{
-		Cfg:    cfg,
-		Log:    log,
-		Store:  store,
-		RDB:    rdb,
-		Loader: loader,
+		Cfg:      cfg,
+		Log:      log,
+		Store:    store,
+		RDB:      rdb,
+		Namedays: namedaySvc,
+		Holidays: holidaySvc,
 	}
 	if err := server.Run(deps); err != nil {
 		log.Fatal("server error", zap.Error(err))
