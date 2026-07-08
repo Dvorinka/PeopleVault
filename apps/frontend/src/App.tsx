@@ -25,6 +25,7 @@ const People = React.lazy(() => import("@/pages/People"));
 const PersonDetail = React.lazy(() => import("@/pages/PersonDetail"));
 const PersonEdit = React.lazy(() => import("@/pages/PersonEdit"));
 const Events = React.lazy(() => import("@/pages/Events"));
+const Holidays = React.lazy(() => import("@/pages/Holidays"));
 const Reminders = React.lazy(() => import("@/pages/Reminders"));
 const Tags = React.lazy(() => import("@/pages/Tags"));
 const Settings = React.lazy(() => import("@/pages/Settings"));
@@ -50,6 +51,7 @@ const router = createBrowserRouter([
       { path: "/people/:id", element: withSuspense(<PersonDetail />) },
       { path: "/people/:id/edit", element: withSuspense(<PersonEdit />) },
       { path: "/events", element: withSuspense(<Events />) },
+      { path: "/holidays", element: withSuspense(<Holidays />) },
       { path: "/reminders", element: withSuspense(<Reminders />) },
       { path: "/tags", element: withSuspense(<Tags />) },
       { path: "/settings", element: withSuspense(<Settings />) },

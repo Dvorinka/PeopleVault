@@ -19,6 +19,7 @@ import { AnniversaryCard } from "@/components/dashboard/AnniversaryCard";
 import { NamedayCard } from "@/components/dashboard/NamedayCard";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { QuickActions } from "@/components/dashboard/QuickActions";
+import { TodaysHolidaysCard } from "@/components/dashboard/TodaysHolidaysCard";
 import { PersonAvatar } from "@/components/common/PersonAvatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -67,7 +68,7 @@ function Section({
 }
 
 export default function Dashboard(): React.ReactElement {
-  const { user } = useAuth();
+  const { user, settings } = useAuth();
   const { toast } = useToast();
   const [data, setData] = React.useState<Dashboard | null>(null);
   const [loading, setLoading] = React.useState(true);
@@ -155,6 +156,10 @@ export default function Dashboard(): React.ReactElement {
           accent="primary"
         />
       </div>
+
+      {settings?.namedayCountry ? (
+        <TodaysHolidaysCard country={settings.namedayCountry} />
+      ) : null}
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">

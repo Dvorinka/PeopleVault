@@ -9,6 +9,7 @@ import {
   Plus,
   Trash2,
   Edit2,
+  Download,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { components } from "@peoplevault/api-client";
@@ -17,6 +18,7 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/common/EmptyState";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
+import { HolidayBrowser } from "@/components/holidays/HolidayBrowser";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -39,6 +41,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { api, apiError } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { EVENT_TYPES, EVENT_TYPE_LABEL } from "@/lib/constants";
 import { formatLongDate, daysUntilNextOccurrence } from "@/lib/date";
@@ -59,6 +62,7 @@ const TYPE_ICON: Record<string, LucideIcon> = {
 
 export default function Events(): React.ReactElement {
   const { toast } = useToast();
+  const { settings } = useAuth();
   const [events, setEvents] = React.useState<Event[]>([]);
   const [people, setPeople] = React.useState<Person[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -68,6 +72,11 @@ export default function Events(): React.ReactElement {
   const [editing, setEditing] = React.useState<Event | null>(null);
   const [confirmOpen, setConfirmOpen] = React.useState(false);
   const [toDelete, setToDelete] = React.useState<Event | null>(null);
+  const [importOpen, setImportOpen] = React.useState(false);
+  const [importSelection, setImportSelection] = React.useState<
+    components["schemas"]["Holiday"][]
+  >([]);
+  const [importing, setImporting] = React.useState(false);
 
   const load = React.useCallback(async () => {
     setLoading(true);
@@ -143,20 +152,78 @@ export default function Events(): React.ReactElement {
     }
   };
 
+  const importHolidays = async (): Promise<void> => {
+    if (importSelection.length === 0) return;
+    setImporting(true);
+    let created = 0;
+    let failed = 0;
+    try {
+      for (const h of importSelection) {
+        try {
+          const { data, error } = await api.POST("/events", {
+            body: {
+              title: h.name,
+              type: "holiday",
+              eventDate: h.date,
+              isRecurring: true,
+              notes: h.localName && h.localName !== h.name ? h.localName : undefined,
+            },
+          });
+          if (error) throw new Error(apiError(error));
+          if (data) {
+            setEvents((e) => [...e, data as Event]);
+            created += 1;
+          }
+        } catch {
+          failed += 1;
+        }
+      }
+      if (created > 0) {
+        toast({
+          title: "Holidays imported",
+          description: `${created} holiday event${created === 1 ? "" : "s"} added${
+            failed > 0 ? `, ${failed} failed` : ""
+          }.`,
+        });
+      } else if (failed > 0) {
+        toast({
+          variant: "destructive",
+          title: "Import failed",
+          description: `Couldn't import ${failed} holiday${failed === 1 ? "" : "s"}.`,
+        });
+      }
+      setImportOpen(false);
+      setImportSelection([]);
+    } finally {
+      setImporting(false);
+    }
+  };
+
   return (
     <div className="space-y-8">
       <PageHeader
         title="Events"
         description="Birthdays, anniversaries, and the moments worth remembering."
         actions={
-          <Button
-            onClick={() => {
-              setEditing(null);
-              setDialogOpen(true);
-            }}
-          >
-            <Plus className="h-4 w-4" /> Add event
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setImportSelection([]);
+                setImportOpen(true);
+              }}
+            >
+              <Download className="h-4 w-4" /> Import holidays
+            </Button>
+            <Button
+              onClick={() => {
+                setEditing(null);
+                setDialogOpen(true);
+              }}
+            >
+              <Plus className="h-4 w-4" /> Add event
+            </Button>
+          </div>
         }
       />
 
@@ -289,6 +356,36 @@ export default function Events(): React.ReactElement {
         destructive
         onConfirm={onDelete}
       />
+
+      <Dialog open={importOpen} onOpenChange={setImportOpen}>
+        <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Import holidays</DialogTitle>
+            <DialogDescription>
+              Browse public holidays and select the ones you want to add as recurring
+              holiday events.
+            </DialogDescription>
+          </DialogHeader>
+          <HolidayBrowser
+            defaultCountry={settings?.namedayCountry ?? "CZ"}
+            selectable
+            onSelectionChange={setImportSelection}
+          />
+          <DialogFooter className="sticky bottom-0 bg-card pt-2">
+            <Button variant="outline" onClick={() => setImportOpen(false)} disabled={importing}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => void importHolidays()}
+              disabled={importing || importSelection.length === 0}
+            >
+              {importing
+                ? "Importing…"
+                : `Import selected${importSelection.length > 0 ? ` (${importSelection.length})` : ""}`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

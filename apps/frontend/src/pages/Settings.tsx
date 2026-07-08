@@ -12,10 +12,13 @@ import {
   Sun,
   User as UserIcon,
   Bell,
+  Sparkles,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 import { PageHeader } from "@/components/common/PageHeader";
+import { CountrySelect } from "@/components/common/CountrySelect";
+import { NamedaySearch } from "@/components/nameday/NamedaySearch";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -31,7 +34,7 @@ import { useAuth } from "@/lib/auth";
 import { useTheme } from "@/lib/theme";
 import { useToast } from "@/hooks/use-toast";
 import { apiError } from "@/lib/api";
-import { LEAD_DAY_OPTIONS, NAMEDAY_COUNTRIES, type Theme } from "@/lib/constants";
+import { LEAD_DAY_OPTIONS, type Theme } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
 export default function Settings(): React.ReactElement {
@@ -208,14 +211,11 @@ export default function Settings(): React.ReactElement {
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="country">Nameday country</Label>
-              <Select value={country} onValueChange={setCountry}>
-                <SelectTrigger id="country"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {NAMEDAY_COUNTRIES.map((c) => (
-                    <SelectItem key={c.code} value={c.code}>{c.name} ({c.code})</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <CountrySelect
+                id="country"
+                value={country}
+                onValueChange={setCountry}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="lead" className="flex items-center gap-1.5">
@@ -233,6 +233,21 @@ export default function Settings(): React.ReactElement {
             <Button onClick={() => void savePrefs()} disabled={savingPrefs}>
               {savingPrefs ? "Saving…" : "Save preferences"}
             </Button>
+          </CardContent>
+        </Card>
+
+        {/* Nameday lookup */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" /> Nameday lookup
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="mb-4 text-sm text-muted-foreground">
+              Search any name to find its nameday across all supported countries.
+            </p>
+            <NamedaySearch />
           </CardContent>
         </Card>
 

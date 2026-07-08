@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useNavigate } from "react-router-dom";
-import { Star, X } from "lucide-react";
+import { Search, Sparkles, Star, X } from "lucide-react";
 import type { components } from "@peoplevault/api-client";
 
 import { Button } from "@/components/ui/button";
@@ -9,15 +9,24 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { CountrySelect } from "@/components/common/CountrySelect";
+import { NamedaySearch } from "@/components/nameday/NamedaySearch";
 import { api, apiError } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
-import { NAMEDAY_COUNTRIES } from "@/lib/constants";
+import { MONTH_NAMES, formatMonthDayFromParts } from "@/lib/date";
 import { cn } from "@/lib/utils";
 
 type Person = components["schemas"]["Person"];
@@ -37,6 +46,8 @@ const EMPTY: PersonInput = {
   birthday: "",
   anniversary: "",
   namedayCountry: "",
+  namedayMonth: undefined,
+  namedayDay: undefined,
   ageVisible: true,
   address: "",
   phone: "",
@@ -59,6 +70,8 @@ function toForm(person: Person | undefined): PersonInput {
     birthday: person.birthday ?? "",
     anniversary: person.anniversary ?? "",
     namedayCountry: person.namedayCountry ?? "",
+    namedayMonth: person.namedayMonth ?? undefined,
+    namedayDay: person.namedayDay ?? undefined,
     ageVisible: person.ageVisible ?? true,
     address: person.address ?? "",
     phone: person.phone ?? "",
@@ -82,6 +95,7 @@ export function PersonForm({ person, onSaved }: PersonFormProps): React.ReactEle
   const [newTag, setNewTag] = React.useState("");
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [namedaySearchOpen, setNamedaySearchOpen] = React.useState(false);
 
   React.useEffect(() => {
     let active = true;
@@ -149,6 +163,8 @@ export function PersonForm({ person, onSaved }: PersonFormProps): React.ReactEle
         birthday: form.birthday || undefined,
         anniversary: form.anniversary || undefined,
         namedayCountry: form.namedayCountry || undefined,
+        namedayMonth: form.namedayMonth || undefined,
+        namedayDay: form.namedayDay || undefined,
         address: form.address?.trim() || undefined,
         phone: form.phone?.trim() || undefined,
         email: form.email?.trim() || undefined,
@@ -270,26 +286,103 @@ export function PersonForm({ person, onSaved }: PersonFormProps): React.ReactEle
               disabled={saving}
             />
           </Field>
-          <Field label="Nameday country">
+          <Field label="Nameday country" className="sm:col-span-2">
+            <CountrySelect
+              value={form.namedayCountry ?? ""}
+              onValueChange={(v) => {
+                setForm((f) => ({
+                  ...f,
+                  namedayCountry: v,
+                  // Clear month/day if country is cleared.
+                  namedayMonth: v ? f.namedayMonth : undefined,
+                  namedayDay: v ? f.namedayDay : undefined,
+                }));
+              }}
+              allowNone
+              placeholder="None"
+              disabled={saving}
+              aria-label="Nameday country"
+            />
+          </Field>
+          <Field label="Nameday month">
             <Select
-              value={form.namedayCountry ?? "none"}
-              onValueChange={(v) => set("namedayCountry", v === "none" ? "" : v)}
+              value={form.namedayMonth ? String(form.namedayMonth) : "none"}
+              onValueChange={(v) => set("namedayMonth", v === "none" ? undefined : Number(v))}
+              disabled={saving || !form.namedayCountry}
             >
-              <SelectTrigger disabled={saving}>
-                <SelectValue placeholder="None" />
+              <SelectTrigger>
+                <SelectValue placeholder="—" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">None</SelectItem>
-                {NAMEDAY_COUNTRIES.map((c) => (
-                  <SelectItem key={c.code} value={c.code}>
-                    {c.name} ({c.code})
-                  </SelectItem>
+                <SelectItem value="none">—</SelectItem>
+                {MONTH_NAMES.map((m, i) => (
+                  <SelectItem key={i} value={String(i + 1)}>{m}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </Field>
+          <Field label="Nameday day">
+            <div className="flex gap-2">
+              <Input
+                type="number"
+                min={1}
+                max={31}
+                value={form.namedayDay ?? ""}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  set("namedayDay", v === "" ? undefined : Math.max(1, Math.min(31, Number(v))));
+                }}
+                disabled={saving || !form.namedayCountry}
+                placeholder="—"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setNamedaySearchOpen(true)}
+                disabled={saving}
+                aria-label="Search nameday"
+              >
+                <Search className="h-4 w-4" /> Search
+              </Button>
+            </div>
+            {form.namedayMonth && form.namedayDay ? (
+              <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Sparkles className="h-3 w-3 text-primary" />
+                {formatMonthDayFromParts(form.namedayMonth, form.namedayDay)}
+              </p>
+            ) : null}
+          </Field>
         </div>
       </fieldset>
+
+      <Dialog open={namedaySearchOpen} onOpenChange={setNamedaySearchOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Search nameday</DialogTitle>
+            <DialogDescription>
+              Find the nameday for a name across countries. Selecting a result fills
+              the nameday country, month, and day.
+            </DialogDescription>
+          </DialogHeader>
+          <NamedaySearch
+            initialQuery={form.fullName.split(/\s+/)[0] ?? ""}
+            country={form.namedayCountry || null}
+            compact
+            onSelect={(r) => {
+              setForm((f) => ({
+                ...f,
+                namedayCountry: r.country.toUpperCase(),
+                namedayMonth: r.month,
+                namedayDay: r.day,
+              }));
+              toast({
+                title: "Nameday selected",
+                description: `${r.name} — ${formatMonthDayFromParts(r.month, r.day)} (${r.country.toUpperCase()})`,
+              });
+            }}
+          />
+        </DialogContent>
+      </Dialog>
 
       {/* Contact */}
       <fieldset className="space-y-4">
