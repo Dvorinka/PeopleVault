@@ -97,7 +97,8 @@ export function TodaysHolidaysCard({
       </div>
       <ul className="space-y-2.5">
         {holidays.map((h) => {
-          const type = h.type as HolidayType | undefined;
+          const types = (h.holidayTypes ?? []) as HolidayType[];
+          const primaryType = types[0];
           return (
             <li
               key={`${h.date}-${h.name}`}
@@ -111,12 +112,12 @@ export function TodaysHolidaysCard({
                 <p className="text-xs text-muted-foreground">{formatLongDate(h.date)}</p>
               </div>
               <div className="flex shrink-0 flex-wrap items-center gap-1.5">
-                {type ? (
+                {primaryType ? (
                   <Badge variant="outline" className="text-[10px]">
-                    {HOLIDAY_TYPE_LABEL[type] ?? type}
+                    {HOLIDAY_TYPE_LABEL[primaryType] ?? primaryType}
                   </Badge>
                 ) : null}
-                {h.global ? (
+                {h.nationalHoliday ? (
                   <Badge variant="success" className="text-[10px]">National</Badge>
                 ) : null}
               </div>

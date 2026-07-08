@@ -116,9 +116,9 @@ export function HolidayBrowser({
 
   const filtered = React.useMemo(() => {
     return holidays.filter((h) => {
-      if (nationalOnly && !h.global) return false;
-      const t = h.type as HolidayType | undefined;
-      if (t && !enabledTypes.has(t)) return false;
+      if (nationalOnly && !h.nationalHoliday) return false;
+      const types = (h.holidayTypes ?? []) as HolidayType[];
+      if (types.length > 0 && !types.some((t) => enabledTypes.has(t))) return false;
       return true;
     });
   }, [holidays, enabledTypes, nationalOnly]);
@@ -262,7 +262,8 @@ export function HolidayBrowser({
           {filtered.map((h) => {
             const key = holidayKey(h);
             const isSelected = selected.has(key);
-            const type = h.type as HolidayType | undefined;
+            const types = (h.holidayTypes ?? []) as HolidayType[];
+            const primaryType = types[0];
             return (
               <li key={key}>
                 <Card
@@ -291,15 +292,14 @@ export function HolidayBrowser({
                       <p className="truncate font-medium">{h.name}</p>
                       <p className="text-xs text-muted-foreground">
                         {formatLongDate(h.date)}
-                        {h.localName && h.localName !== h.name ? ` · ${h.localName}` : ""}
                       </p>
                       <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                        {type ? (
-                          <Badge variant={TYPE_BADGE_VARIANT[type] ?? "outline"}>
-                            {HOLIDAY_TYPE_LABEL[type] ?? type}
+                        {primaryType ? (
+                          <Badge variant={TYPE_BADGE_VARIANT[primaryType] ?? "outline"}>
+                            {HOLIDAY_TYPE_LABEL[primaryType] ?? primaryType}
                           </Badge>
                         ) : null}
-                        {h.global ? (
+                        {h.nationalHoliday ? (
                           <Badge variant="success" className="gap-1">
                             <CalendarDays className="h-3 w-3" /> National
                           </Badge>
