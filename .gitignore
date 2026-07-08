@@ -1,0 +1,45 @@
+# Env / secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Go
+/apps/backend/bin/
+/apps/backend/tmp/
+*.exe
+*.test
+*.out
+coverage.out
+cover.out
+
+# Generated sqlc code (regenerated from queries)
+/apps/backend/internal/db/sqlc/
+
+# Node / Frontend
+node_modules/
+**/dist/
+**/build/
+.vite/
+*.tsbuildinfo
+.eslintcache
+
+# Generated API client
+/packages/api-client/dist/
+/packages/api-client/src/generated/
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs
+*.log
+logs/
+
+# Docker
+infra/data/

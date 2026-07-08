@@ -1,0 +1,684 @@
+openapi: 3.1.0
+info:
+  title: PeopleVault API
+  version: 1.0.0
+  description: |
+    Privacy-first Personal Relationship Manager API.
+    All person-scoped data is isolated by the authenticated user (owner).
+    Cookie-based sessions. CSRF protection on mutating routes.
+  license:
+    name: MIT
+servers:
+  - url: http://localhost:8081
+    description: Local backend
+  - url: /api
+    description: Via Nginx
+
+tags:
+  - name: Auth
+  - name: Users
+  - name: People
+  - name: Tags
+  - name: Events
+  - name: Reminders
+  - name: Timeline
+  - name: Relationships
+  - name: Attachments
+  - name: Namedays
+  - name: Dashboard
+  - name: Search
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: peoplevault_session
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }
+        detail: { type: string }
+    Paginated:
+      type: object
+      required: [items, total, page, pageSize]
+      properties:
+        items: { type: array, items: {} }
+        total: { type: integer }
+        page: { type: integer }
+        pageSize: { type: integer }
+    User:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string, format: email }
+        name: { type: string, nullable: true }
+        emailVerified: { type: boolean }
+        createdAt: { type: string, format: date-time }
+    UserSettings:
+      type: object
+      properties:
+        namedayCountry: { type: string }
+        theme: { type: string, enum: [light, dark, system] }
+        defaultReminderLeadDays: { type: integer }
+        onboarded: { type: boolean }
+    Person:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        fullName: { type: string }
+        nickname: { type: string, nullable: true }
+        avatarUrl: { type: string, nullable: true }
+        relationship: { type: string, nullable: true }
+        birthday: { type: string, format: date, nullable: true }
+        anniversary: { type: string, format: date, nullable: true }
+        namedayCountry: { type: string, nullable: true }
+        namedayMonth: { type: integer, nullable: true }
+        namedayDay: { type: integer, nullable: true }
+        ageVisible: { type: boolean }
+        address: { type: string, nullable: true }
+        phone: { type: string, nullable: true }
+        email: { type: string, nullable: true }
+        notes: { type: string, nullable: true }
+        favoriteThings: { type: string, nullable: true }
+        giftIdeas: { type: string, nullable: true }
+        interests: { type: string, nullable: true }
+        isFavorite: { type: boolean }
+        tags:
+          type: array
+          items: { $ref: '#/components/schemas/Tag' }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    PersonInput:
+      type: object
+      required: [fullName]
+      properties:
+        fullName: { type: string }
+        nickname: { type: string }
+        avatarUrl: { type: string }
+        relationship: { type: string }
+        birthday: { type: string, format: date }
+        anniversary: { type: string, format: date }
+        namedayCountry: { type: string }
+        namedayMonth: { type: integer }
+        namedayDay: { type: integer }
+        ageVisible: { type: boolean }
+        address: { type: string }
+        phone: { type: string }
+        email: { type: string }
+        notes: { type: string }
+        favoriteThings: { type: string }
+        giftIdeas: { type: string }
+        interests: { type: string }
+        isFavorite: { type: boolean }
+        tagIds:
+          type: array
+          items: { type: string, format: uuid }
+    Tag:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        createdAt: { type: string, format: date-time }
+    TagInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+    Event:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        personId: { type: string, format: uuid, nullable: true }
+        title: { type: string }
+        type: { type: string, enum: [birthday, anniversary, nameday, wedding, graduation, holiday, custom] }
+        eventDate: { type: string, format: date }
+        isRecurring: { type: boolean }
+        recurrenceRule: { type: string, nullable: true }
+        notes: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    EventInput:
+      type: object
+      required: [title, type, eventDate]
+      properties:
+        personId: { type: string, format: uuid }
+        title: { type: string }
+        type: { type: string, enum: [birthday, anniversary, nameday, wedding, graduation, holiday, custom] }
+        eventDate: { type: string, format: date }
+        isRecurring: { type: boolean }
+        recurrenceRule: { type: string }
+        notes: { type: string }
+    Reminder:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        eventId: { type: string, format: uuid }
+        leadDays: { type: integer }
+        firedAt: { type: string, format: date-time, nullable: true }
+        createdAt: { type: string, format: date-time }
+    ReminderInput:
+      type: object
+      required: [eventId, leadDays]
+      properties:
+        eventId: { type: string, format: uuid }
+        leadDays: { type: integer }
+    TimelineEntry:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        personId: { type: string, format: uuid }
+        type: { type: string, enum: [birthday, anniversary, met, gift, vacation, achievement, memory, photo, reminder, note] }
+        title: { type: string, nullable: true }
+        body: { type: string, nullable: true }
+        occurredOn: { type: string, format: date, nullable: true }
+        createdAt: { type: string, format: date-time }
+    TimelineEntryInput:
+      type: object
+      required: [personId, type]
+      properties:
+        personId: { type: string, format: uuid }
+        type: { type: string, enum: [birthday, anniversary, met, gift, vacation, achievement, memory, photo, reminder, note] }
+        title: { type: string }
+        body: { type: string }
+        occurredOn: { type: string, format: date }
+    Relationship:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        fromPersonId: { type: string, format: uuid }
+        toPersonId: { type: string, format: uuid }
+        kind: { type: string }
+        createdAt: { type: string, format: date-time }
+    RelationshipInput:
+      type: object
+      required: [fromPersonId, toPersonId, kind]
+      properties:
+        fromPersonId: { type: string, format: uuid }
+        toPersonId: { type: string, format: uuid }
+        kind: { type: string }
+    Attachment:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        personId: { type: string, format: uuid, nullable: true }
+        kind: { type: string, enum: [photo, document, voice] }
+        filename: { type: string }
+        storageKey: { type: string }
+        mimeType: { type: string, nullable: true }
+        sizeBytes: { type: integer, nullable: true }
+        createdAt: { type: string, format: date-time }
+    Nameday:
+      type: object
+      properties:
+        month: { type: integer }
+        day: { type: integer }
+        names:
+          type: array
+          items: { type: string }
+    Dashboard:
+      type: object
+      properties:
+        upcomingBirthdays: { type: array, items: { $ref: '#/components/schemas/Person' } }
+        upcomingAnniversaries: { type: array, items: { $ref: '#/components/schemas/Person' } }
+        todaysNamedays: { type: array, items: { $ref: '#/components/schemas/Nameday' } }
+        todaysEvents: { type: array, items: { $ref: '#/components/schemas/Event' } }
+        recentlyAdded: { type: array, items: { $ref: '#/components/schemas/Person' } }
+        pendingReminders: { type: array, items: { $ref: '#/components/schemas/Reminder' } }
+        stats:
+          type: object
+          properties:
+            totalPeople: { type: integer }
+            favorites: { type: integer }
+            upcomingThisMonth: { type: integer }
+
+security:
+  - cookieAuth: []
+
+paths:
+  /healthz:
+    get:
+      tags: [Auth]
+      security: []
+      summary: Liveness probe
+      responses:
+        '200': { description: OK }
+
+  /auth/register:
+    post:
+      tags: [Auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, format: password, minLength: 12 }
+                name: { type: string }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+        '400': { description: Bad request, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '409': { description: Email already registered, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '429': { description: Rate limited, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+                rememberMe: { type: boolean }
+      responses:
+        '200':
+          description: OK
+          content: { application/json: { schema: { $ref: '#/components/schemas/User' } } }
+        '401': { description: Invalid credentials, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '429': { description: Rate limited, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      responses:
+        '204': { description: No content }
+
+  /auth/me:
+    get:
+      tags: [Auth]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/User' } } } }
+        '401': { description: Unauthorized, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  /auth/forgot-password:
+    post:
+      tags: [Auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties: { email: { type: string, format: email } }
+      responses:
+        '204': { description: No content (always, to prevent enumeration) }
+
+  /auth/reset-password:
+    post:
+      tags: [Auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, password]
+              properties:
+                token: { type: string }
+                password: { type: string, minLength: 12 }
+      responses:
+        '204': { description: No content }
+        '400': { description: Invalid or expired token, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  /auth/verify-email:
+    post:
+      tags: [Auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties: { token: { type: string } }
+      responses:
+        '204': { description: No content }
+        '400': { description: Invalid token, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  /users/me:
+    get:
+      tags: [Users]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/User' } } } }
+
+  /users/me/settings:
+    get:
+      tags: [Users]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/UserSettings' } } } }
+    put:
+      tags: [Users]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UserSettings' }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/UserSettings' } } } }
+
+  /people:
+    get:
+      tags: [People]
+      parameters:
+        - in: query
+          name: q
+          schema: { type: string }
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+        - in: query
+          name: pageSize
+          schema: { type: integer, default: 24, maximum: 100 }
+        - in: query
+          name: tag
+          schema: { type: string }
+        - in: query
+          name: relationship
+          schema: { type: string }
+        - in: query
+          name: favorite
+          schema: { type: boolean }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Paginated'
+                  - type: object
+                    properties:
+                      items: { type: array, items: { $ref: '#/components/schemas/Person' } }
+    post:
+      tags: [People]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/PersonInput' } } }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Person' } } } }
+        '400': { description: Bad request, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  /people/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [People]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Person' } } } }
+        '404': { description: Not found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+    put:
+      tags: [People]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/PersonInput' } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Person' } } } }
+        '404': { description: Not found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+    delete:
+      tags: [People]
+      responses:
+        '204': { description: No content }
+        '404': { description: Not found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  /people/{id}/favorite:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [People]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [favorite]
+              properties: { favorite: { type: boolean } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Person' } } } }
+
+  /people/{id}/timeline:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Timeline]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/TimelineEntry' } } } } }
+    post:
+      tags: [Timeline]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/TimelineEntryInput' } } }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/TimelineEntry' } } } }
+
+  /timeline/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string, format: uuid }
+    delete:
+      tags: [Timeline]
+      responses:
+        '204': { description: No content }
+
+  /people/{id}/relationships:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Relationships]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Relationship' } } } } }
+
+  /relationships:
+    post:
+      tags: [Relationships]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/RelationshipInput' } } }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Relationship' } } } }
+
+  /relationships/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string, format: uuid }
+    delete:
+      tags: [Relationships]
+      responses:
+        '204': { description: No content }
+
+  /people/{id}/attachments:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Attachments]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Attachment' } } } } }
+
+  /attachments/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string, format: uuid }
+    delete:
+      tags: [Attachments]
+      responses:
+        '204': { description: No content }
+
+  /tags:
+    get:
+      tags: [Tags]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Tag' } } } } }
+    post:
+      tags: [Tags]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/TagInput' } } }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Tag' } } } }
+
+  /tags/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string, format: uuid }
+    delete:
+      tags: [Tags]
+      responses:
+        '204': { description: No content }
+
+  /events:
+    get:
+      tags: [Events]
+      parameters:
+        - in: query
+          name: personId
+          schema: { type: string, format: uuid }
+        - in: query
+          name: daysAhead
+          schema: { type: integer, default: 30 }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Event' } } } } }
+    post:
+      tags: [Events]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/EventInput' } } }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Event' } } } }
+
+  /events/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string, format: uuid }
+    put:
+      tags: [Events]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/EventInput' } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Event' } } } }
+    delete:
+      tags: [Events]
+      responses:
+        '204': { description: No content }
+
+  /reminders:
+    get:
+      tags: [Reminders]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Reminder' } } } } }
+    post:
+      tags: [Reminders]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/ReminderInput' } } }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Reminder' } } } }
+
+  /reminders/{id}/fire:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Reminders]
+      responses:
+        '204': { description: No content }
+
+  /namedays/{country}:
+    parameters:
+      - in: path
+        name: country
+        required: true
+        schema: { type: string }
+    get:
+      tags: [Namedays]
+      security: []
+      parameters:
+        - in: query
+          name: month
+          schema: { type: integer }
+        - in: query
+          name: day
+          schema: { type: integer }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Nameday' } } } } }
+        '404': { description: Unknown country, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  /namedays:
+    get:
+      tags: [Namedays]
+      security: []
+      responses:
+        '200':
+          description: List of supported country codes
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { type: string }
+
+  /search:
+    get:
+      tags: [Search]
+      parameters:
+        - in: query
+          name: q
+          required: true
+          schema: { type: string }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 20 }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Person' } } } } }
+
+  /dashboard:
+    get:
+      tags: [Dashboard]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Dashboard' } } } }
